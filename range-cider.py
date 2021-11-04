@@ -12,13 +12,20 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-r", "--ranges", help="Ranges file path", required=True, type=str)
+        "-r", "--ranges", help="Comma-separated ranges", required=False, type=str)
+    parser.add_argument(
+        "--rp", "--ranges-path", help="Ranges file path", required=False, type=str)
+
+    parser.add_argument(
+        "-e", "--exceptions", help="Comma-separated ranges", required=False, type=str)
+    parser.add_argument(
+        "--ep", "--exceptions-path", help="Exceptions file path", required=False, type=str)
 
     parser.add_argument("-v", "--verbose", help="More output",
                         required=False, action="store_true", default=False)
     parser.add_argument("--debug", help="More output (implies --verbose)",
                         required=False, action="store_true", default=False)
-    parser.add_argument("-o", "--output", help="Output file path",
+    parser.add_argument("--op", "--output-path", help="Output file path",
                         required=False, type=str, default="")
 
     subparser = parser.add_subparsers(help="Choose an action")
@@ -50,8 +57,33 @@ if __name__ == '__main__':
             lgr.setLevel(level=logging.INFO)
             lgr.addHandler(h)
 
-    if not hasattr(args, "handler"):
-        logger.error("Please select a command")
+    if not args.ranges and not args.rp:
         cider_parser.print_help()
+        logger.error("Please provide ranges to use")
         sys.exit(-1)
-    args.handler(args)
+
+    ranges = []
+    if args.ranges:
+        ranges.extend(args.ranges.split(","))
+    if args.rp:
+        ranges.extend(open(args.rp).read().split())
+    logger.debug(f"Ranges: {' '.join(ranges)}")
+
+    exceptions = []
+    if args.exceptions:
+        exceptions.extend(args.exceptions.split(","))
+    if args.ep:
+        exceptions.extend(open(args.ep).read().split())
+    logger.debug(f"Exceptions: {' '.join(exceptions) or 'None'}")
+
+    if not hasattr(args, "handler"):
+        cider_parser.print_help()
+        logger.error("Please select a command")
+        sys.exit(-1)
+
+    result = args.handler(ranges, exceptions, args)
+
+    if args.op:
+        open(args.op, "w").write(result)
+
+    print(result)
