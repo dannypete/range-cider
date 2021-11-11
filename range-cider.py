@@ -27,6 +27,9 @@ def get_parser() -> argparse.ArgumentParser:
                         required=False, action="store_true", default=False)
     parser.add_argument("--op", "--output-path", help="Output file path",
                         required=False, type=str, default="")
+    # TODO support IPv6
+    # parser.add_argument("-6", "--ipv6", help="Provided IPs are IPv6, not IPv4",
+    #                     required=False, action="store_true", default=False)
 
     subparser = parser.add_subparsers(help="Choose an action")
 
