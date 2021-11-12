@@ -5,7 +5,7 @@ SCRIPT_NAME = "info"
 logger = logging.getLogger(__name__)
 
 
-def handle_info(args):
+def handle_info(ranges, exceptions, args):
     logger.warning("Not implemented")
 
 

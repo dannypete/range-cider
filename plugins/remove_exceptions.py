@@ -7,20 +7,14 @@ logger = logging.getLogger(__name__)
 
 
 def handle_remove_exceptions(ranges, exceptions, args):
-    rangesnws = list(
-        map(lambda x: ipaddress.IPv4Network(x, strict=False), ranges))
-
-    excptnws = list(
-        map(lambda x: ipaddress.IPv4Network(x, strict=False), exceptions))
-
     # TODO don't read into memory; be smarter using IPAddress's existing functions
     range_hosts = set()
-    for rnge in rangesnws:
+    for rnge in ranges:
         range_hosts = range_hosts.union(set(rnge))
     range_hosts = sorted(range_hosts)
 
     excpt_hosts = set()
-    for ecpt in excptnws:
+    for ecpt in exceptions:
         excpt_hosts = excpt_hosts.union(set(ecpt))
     excpt_hosts = sorted(excpt_hosts)
 

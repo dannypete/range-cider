@@ -1,4 +1,5 @@
 import argparse
+import ipaddress
 import logging
 import sys
 
@@ -27,9 +28,8 @@ def get_parser() -> argparse.ArgumentParser:
                         required=False, action="store_true", default=False)
     parser.add_argument("--op", "--output-path", help="Output file path",
                         required=False, type=str, default="")
-    # TODO support IPv6
-    # parser.add_argument("-6", "--ipv6", help="Provided IPs are IPv6, not IPv4",
-    #                     required=False, action="store_true", default=False)
+    parser.add_argument("-6", "--ipv6", help="Provided IPs are IPv6, not IPv4",
+                        required=False, action="store_true", default=False)
 
     subparser = parser.add_subparsers(help="Choose an action")
 
@@ -37,6 +37,16 @@ def get_parser() -> argparse.ArgumentParser:
     plugins.remove_exceptions.add_parser_configuration(subparser)
 
     return parser
+
+
+def parse_ips(ranges, is_ipv6=False) -> list:
+    if is_ipv6:
+        return list(
+            map(lambda x: ipaddress.IPv6Network(x, strict=False), ranges))
+
+    else:
+        return list(
+            map(lambda x: ipaddress.IPv4Network(x, strict=False), ranges))
 
 
 if __name__ == '__main__':
@@ -70,21 +80,24 @@ if __name__ == '__main__':
         ranges.extend(args.ranges.split(","))
     if args.rp:
         ranges.extend(open(args.rp).read().split())
-    logger.debug(f"Ranges: {' '.join(ranges)}")
+
+    parsed_ranges = parse_ips(ranges, args.ipv6)
+    logger.debug(f"Ranges: {' '.join(map(str, ranges))}")
 
     exceptions = []
     if args.exceptions:
         exceptions.extend(args.exceptions.split(","))
     if args.ep:
         exceptions.extend(open(args.ep).read().split())
-    logger.debug(f"Exceptions: {' '.join(exceptions) or 'None'}")
+    parsed_exceptions = parse_ips(exceptions, args.ipv6)
+    logger.debug(f"Exceptions: {' '.join(map(str, exceptions)) or 'None'}")
 
     if not hasattr(args, "handler"):
         cider_parser.print_help()
         logger.error("Please select a command")
         sys.exit(-1)
 
-    result = args.handler(ranges, exceptions, args)
+    result = args.handler(parsed_ranges, parsed_exceptions, args)
 
     if args.op:
         open(args.op, "w").write(result)
