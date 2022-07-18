@@ -3,6 +3,7 @@ import ipaddress
 import logging
 import sys
 
+import plugins.live_host_breakdown
 import plugins.range_info
 import plugins.remove_exceptions
 
@@ -33,6 +34,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     subparser = parser.add_subparsers(help="Choose an action")
 
+    plugins.live_host_breakdown.add_parser_configuration(subparser)
     plugins.range_info.add_parser_configuration(subparser)
     plugins.remove_exceptions.add_parser_configuration(subparser)
 
@@ -99,7 +101,9 @@ if __name__ == '__main__':
 
     result = args.handler(parsed_ranges, parsed_exceptions, args)
 
-    if args.op:
-        open(args.op, "w").write(result)
-
     print(result)
+
+    if args.op:
+        with open(args.op, "w") as outfile:
+            outfile.write(result)
+        print(f"Output written to {args.op}")
