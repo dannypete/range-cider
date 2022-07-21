@@ -25,7 +25,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("-v", "--verbose", help="More output",
                         required=False, action="store_true", default=False)
-    parser.add_argument("--debug", help="More output (implies --verbose)",
+    parser.add_argument("-d", "--debug", help="More output (implies --verbose)",
                         required=False, action="store_true", default=False)
     parser.add_argument("--op", "--output-path", help="Output file path",
                         required=False, type=str, default="")
@@ -42,13 +42,24 @@ def get_parser() -> argparse.ArgumentParser:
 
 
 def parse_ips(ranges, is_ipv6=False) -> list:
+    res = []
     if is_ipv6:
-        return list(
-            map(lambda x: ipaddress.IPv6Network(x, strict=False), ranges))
-
+        for range in ranges:
+            try:
+                res.append(ipaddress.IPv6Network(range, strict=False))
+            except ipaddress.AddressValueError:
+                logger.error(f"\"{range}\" could not be parsed as an IPv6 addresss or network. Quitting.")
+                sys.exit(-1)
+            
     else:
-        return list(
-            map(lambda x: ipaddress.IPv4Network(x, strict=False), ranges))
+        for range in ranges:
+            try:
+                res.append(ipaddress.IPv4Network(range, strict=False))
+            except ipaddress.AddressValueError:
+                logger.error(f"\"{range}\" could not be parsed as an IPv4 address or network. Quitting.")
+                sys.exit(-1)
+
+    return list(ipaddress.collapse_addresses(res))
 
 
 if __name__ == '__main__':
@@ -92,7 +103,7 @@ if __name__ == '__main__':
     if args.ep:
         exceptions.extend(open(args.ep).read().split())
     parsed_exceptions = parse_ips(exceptions, args.ipv6)
-    logger.debug(f"Exceptions: {' '.join(map(str, exceptions)) or 'None'}")
+    # logger.debug(f"Exceptions: {' '.join(map(str, exceptions)) or 'None'}")
 
     if not hasattr(args, "handler"):
         cider_parser.print_help()

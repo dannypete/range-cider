@@ -7,27 +7,78 @@ logger = logging.getLogger(__name__)
 
 
 def handle_remove_exceptions(ranges, exceptions, args):
-    # TODO don't read into memory; be smarter using IPAddress's existing functions
-    range_hosts = set()
-    for rnge in ranges:
-        range_hosts = range_hosts.union(set(rnge))
-    range_hosts = sorted(range_hosts)
+    removed = list(ipaddress.collapse_addresses(remove_exceptions_from_ranges(ranges, exceptions)))
 
-    excpt_hosts = set()
-    for ecpt in exceptions:
-        excpt_hosts = excpt_hosts.union(set(ecpt))
-    excpt_hosts = sorted(excpt_hosts)
+    if args.expanded:
+        res = []
+        for rem in removed:
+            res.extend(map(str, list(rem)))
+        out = "\n".join(res)
 
-    for excpt_host in excpt_hosts:
-        if excpt_host in range_hosts:
-            range_hosts.remove(excpt_host)
-            logger.debug(f"Removing {str(excpt_host)} from ranges.")
+    else:
+        out = "\n".join(map(str, removed))
 
-    if not args.expanded:
-        range_hosts = list(ipaddress.collapse_addresses(range_hosts))
+    return out
 
-    result = "\n".join(map(str, range_hosts))
-    return result
+def remove_exceptions_from_ranges(ranges, exceptions):
+    res = []
+    for range in ranges:
+        res.extend(remove_exceptions_from_range(range, exceptions))
+
+    return res
+
+def remove_exceptions_from_range(range, exceptions):
+    if len(exceptions) == 0:
+        logger.debug(f"Done removing exceptions from {range}.")
+        return [range]
+
+    exception = exceptions[0]
+    removal_result = remove_exception_from_range(range, exception)
+
+    # an exeption was removed which eliminated the entire range
+    if len(removal_result) == 0:
+        logger.debug(f"Removal of {exception} from {range} resulted in the range being deleted.")
+        return []
+
+    # one or more ranges were returned; either:
+    #   an exception was removed, leaving one or more ranges left over
+    #   the range had no exception removed, leaving the starting range intact
+    # in either case, we need to remove the remaining exceptions from this range
+    logger.debug(f"Removal of {exception} from {range} resulted in the range becoming {removal_result}.")
+    return remove_exceptions_from_ranges(removal_result, exceptions[1:])
+
+def remove_exception_from_range(range, exception):
+    # logger.debug(f"Removing exception {exception} from range {range}.")
+
+    range_min, range_max = ipaddress.ip_address(range[0]), ipaddress.ip_address(range[-1])
+    exception_min, exception_max = ipaddress.ip_address(exception[0]), ipaddress.ip_address(exception[-1])
+
+    # logger.debug(f"rmin = {range_min},  rmax = {range_max}")
+    # logger.debug(f"emin = {exception_min},  emax = {exception_max}")
+
+    if exception_max < range_min or exception_min > range_max:
+        return [range]
+
+    if (exception_min == range_min and exception_max == range_max) or \
+            (exception_min < range_min and exception_max == range_max) or \
+            (exception_min == range_min and range_max < exception_max) or \
+            (exception_min < range_min and range_max < exception_max):
+        return []
+
+    elif (range_min < exception_min and exception_max == range_max) or \
+            (range_min < exception_min and range_max < exception_max):
+        return list(ipaddress.summarize_address_range(range_min, max(range_min, exception_min - 1)))
+
+    elif (exception_min == range_min and exception_max < range_max) or \
+            (exception_min < range_min and exception_max < range_max):
+        return list(ipaddress.summarize_address_range(min(exception_max + 1, range_max), range_max))
+
+    elif (range_min < exception_min and exception_max < range_max):
+        return list(ipaddress.summarize_address_range(range_min, max(range_min, exception_min - 1))) + \
+               list(ipaddress.summarize_address_range(min(exception_max + 1, range_max), range_max))
+
+    else: 
+        logger.error(f"Encountered unhandled area: range {range}, trying to remove {exception}")
 
 
 def add_parser_configuration(subparser):
