@@ -10,12 +10,14 @@ def handle_remove_exceptions(ranges, exceptions, args):
     removed = list(ipaddress.collapse_addresses(remove_exceptions_from_ranges(ranges, exceptions)))
 
     if args.expanded:
+        logger.debug("Returning the resulting ranges in expanded format.")
         res = []
         for rem in removed:
             res.extend(map(str, list(rem)))
         out = "\n".join(res)
 
     else:
+        logger.debug("Returning the resulting ranges in condensed CIDR notation.")
         out = "\n".join(map(str, removed))
 
     return out
@@ -23,6 +25,7 @@ def handle_remove_exceptions(ranges, exceptions, args):
 def remove_exceptions_from_ranges(ranges, exceptions):
     res = []
     for range in ranges:
+        logger.debug(f"Removing remaining {len(exceptions)} exceptions from {range}")
         res.extend(remove_exceptions_from_range(range, exceptions))
 
     return res
@@ -44,36 +47,46 @@ def remove_exceptions_from_range(range, exceptions):
     #   an exception was removed, leaving one or more ranges left over
     #   the range had no exception removed, leaving the starting range intact
     # in either case, we need to remove the remaining exceptions from this range
-    logger.debug(f"Removal of {exception} from {range} resulted in the range becoming {removal_result}.")
+    logger.debug(f"Removal of {exception} from {range} resulted in the range becoming {removal_result}. "
+                  "Recursing to remove the remaining exceptions from these ranges.")
     return remove_exceptions_from_ranges(removal_result, exceptions[1:])
 
 def remove_exception_from_range(range, exception):
-    # logger.debug(f"Removing exception {exception} from range {range}.")
+    logger.debug(f"Removing exception {exception} from range {range}.")
 
     range_min, range_max = ipaddress.ip_address(range[0]), ipaddress.ip_address(range[-1])
     exception_min, exception_max = ipaddress.ip_address(exception[0]), ipaddress.ip_address(exception[-1])
 
-    # logger.debug(f"rmin = {range_min},  rmax = {range_max}")
-    # logger.debug(f"emin = {exception_min},  emax = {exception_max}")
+    logger.debug(f"rmin = {range_min},  rmax = {range_max}")
+    logger.debug(f"emin = {exception_min},  emax = {exception_max}")
 
     if exception_max < range_min or exception_min > range_max:
+        logger.debug(f"Range {range} and exception {exception} have no overlap.")
         return [range]
 
     if (exception_min == range_min and exception_max == range_max) or \
             (exception_min < range_min and exception_max == range_max) or \
             (exception_min == range_min and range_max < exception_max) or \
             (exception_min < range_min and range_max < exception_max):
+        logger.debug(f"Range {range} falls within or entirely overlaps with exception {exception}. "
+                     "The entire range will be removed")
         return []
 
     elif (range_min < exception_min and exception_max == range_max) or \
             (range_min < exception_min and range_max < exception_max):
+        logger.debug(f"Range {range} has overlap with exception {exception} at the top of the range. "
+                      "This overlap will be removed")
         return list(ipaddress.summarize_address_range(range_min, max(range_min, exception_min - 1)))
 
     elif (exception_min == range_min and exception_max < range_max) or \
             (exception_min < range_min and exception_max < range_max):
+        logger.debug(f"Range {range} has overlap with exception {exception} at the bottom of the range. "
+                      "This overlap will be removed")
         return list(ipaddress.summarize_address_range(min(exception_max + 1, range_max), range_max))
 
     elif (range_min < exception_min and exception_max < range_max):
+        logger.debug(f"Range {range} has overlap with exception {exception} in the middle of the range. "
+                      "This overlap will be removed, with two result ranges being returned")
         return list(ipaddress.summarize_address_range(range_min, max(range_min, exception_min - 1))) + \
                list(ipaddress.summarize_address_range(min(exception_max + 1, range_max), range_max))
 

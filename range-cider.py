@@ -23,8 +23,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ep", "--exceptions-path", help="Exceptions file path", required=False, type=str)
 
-    parser.add_argument("-v", "--verbose", help="More output",
-                        required=False, action="store_true", default=False)
+    # parser.add_argument("-v", "--verbose", help="More output",
+    #                     required=False, action="store_true", default=False)
     parser.add_argument("-d", "--debug", help="More output (implies --verbose)",
                         required=False, action="store_true", default=False)
     parser.add_argument("--op", "--output-path", help="Output file path",
@@ -75,13 +75,13 @@ if __name__ == '__main__':
             lgr.setLevel(level=logging.DEBUG)
             lgr.addHandler(h)
         logger.debug(args)
-    elif args.verbose:
-        h = logging.StreamHandler()
-        h.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-        for n in [__name__, "plugins"]:
-            lgr = logging.getLogger(n)
-            lgr.setLevel(level=logging.INFO)
-            lgr.addHandler(h)
+    # elif args.verbose:
+    #     h = logging.StreamHandler()
+    #     h.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+    #     for n in [__name__, "plugins"]:
+    #         lgr = logging.getLogger(n)
+    #         lgr.setLevel(level=logging.INFO)
+    #         lgr.addHandler(h)
 
     if not args.ranges and not args.rp:
         cider_parser.print_help()

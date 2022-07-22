@@ -1,4 +1,3 @@
-import ipaddress
 import logging
 
 
@@ -27,15 +26,13 @@ def _handle_breakdown_ipv4(ranges, prefix_summary_len):
     elif prefix_summary_len < 0 or prefix_summary_len > 32:
         logger.exception(
             "Please choose a prefix summary bit length between 0 and 32")
-
-    collapsed_addresses = ipaddress.collapse_addresses(ranges)
-
-    # logger.debug(f"Collapsed addresses: {collapsed_addresses}")
+    logger.debug(f"Breaking down IPs into /{prefix_summary_len}")
 
     summary_dict = {}
-    for network in collapsed_addresses:
+    for network in ranges:
 
         if network.prefixlen < prefix_summary_len:
+            logger.debug(f"Calculating the /{prefix_summary_len} subnets that comprise the range {network}")
             child_nets = _get_child_nets_ipv4(network, prefix_summary_len)
             for cn in child_nets:
                 str_cn = cn
@@ -45,6 +42,7 @@ def _handle_breakdown_ipv4(ranges, prefix_summary_len):
                 summary_dict[str_cn] = cn.num_addresses
 
         elif network.prefixlen > prefix_summary_len:
+            logger.debug(f"Calculating the /{prefix_summary_len} supernet that the range {network} belongs to")
             parent_net = _get_parent_net_ipv4(network, prefix_summary_len)
             str_pn = parent_net
             if str_pn in summary_dict:
@@ -52,7 +50,8 @@ def _handle_breakdown_ipv4(ranges, prefix_summary_len):
             else:
                 summary_dict[str_pn] = network.num_addresses
 
-        else:  # network.prefixlen == 24
+        else:  # network.prefixlen == prefix_summary_len
+            logger.debug(f"Range {network} is already a /{prefix_summary_len}. Leaving it as-is")
             str_n = network
             if str_n in summary_dict:
                 logger.exception(f"{str_n} already defined in summary dict?")
